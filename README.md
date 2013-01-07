@@ -5,7 +5,12 @@ Author: Jonah Meijers
 Nodejs version:
 	Tested on: v0.8.15
 
-=== API ===
+Introduction
+================
+A simple implementation of Server-sent events. With this you can create 'busses' for clients to subscribe to.
+
+Usage
+===============
 	GET-Request:
 		/event with accept headers: 'text/event-stream' (with http, default port 7000)
 		Parameters: 
@@ -26,12 +31,14 @@ Nodejs version:
 			password -> Password for posting data to the bus.
 		Returns: ID that can be subscribed to, for the specific bus.
 
-=== Configuration ===
+Configuration
+===============
 Currently there is no real configuration file (yet).
 At the beginning of main.js some options can be configured such as
 the urls for the actions, the ports the services are run on and where to find the key- and certificate file for the https server.
 
-=== Installation ===
+Installation
+================
 Because this bus uses https for the creation of busses and the posting of data, a key and certificate file must be generated. 
 To generate these:
 
@@ -44,5 +51,6 @@ Make sure the paths in main.js actually point to these files.
 
 (NOTE: This is a self-signed certificate, for actual usage a real certificate should be used.)
 
-=== Usage ===
+Usage
+==============
 simply run main.js by running node {path to main.js}
