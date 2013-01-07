@@ -1,6 +1,8 @@
 Node.js Server-sent Eventbus
 Version: 0.1
-Author: Jonah Meijers
+Author Jonah Meijers for Muze (www.muze.nl)
+
+Email: jonah@muze.nl
 
 Nodejs version:
 	Tested on: v0.8.15
