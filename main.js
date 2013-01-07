@@ -3,7 +3,7 @@ var https = require('https');
 var sys = require('util');
 var fs = require('fs');
 
-require('./bus.js');
+require('./Bus.js');
 
 var busCounter = 1;
 
