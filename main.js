@@ -1,3 +1,11 @@
+/*
+ * This file is part of the Muze Server-sent eventbus
+ *
+ * (c) Muze <info@muze.nl>
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
 var http = require('http');
 var https = require('https');
 var sys = require('util');
