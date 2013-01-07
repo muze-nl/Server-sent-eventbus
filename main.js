@@ -60,10 +60,9 @@ var varEventServer = http.createServer(function(request, response) {
 			console.log('no parameters received for an eventstream request');
 		}
 	}
-	//tempshiturl
+	//test helpers
 	if(request.url == '/test'){
 		console.log('testUrl requested');
-		//dostuff return the testpage to show the correct bus
 		response.writeHead(200, {'Content-Type': 'text/html'});
 		response.write(fs.readFileSync(__dirname + '/sse-node.html'));
 		console.log('sse-node sent to client');
@@ -184,7 +183,7 @@ function handlePost(postData){
 				console.log('incorrect password received, not sending anything.');
 			}
 		} else {
-			//invalid bus
+				//invalid bus
 				console.log('invalid ID received, bus does not exist.');
 		}
 	} else {
