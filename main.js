@@ -1,27 +1,21 @@
-/*
- * This file is part of the Muze Server-sent eventbus
- *
- * (c) Muze <info@muze.nl>
- *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
- */
 var http = require('http');
 var https = require('https');
 var sys = require('util');
 var fs = require('fs');
 
-require('./Bus.js');
+require('./bus.js');
 
 var busCounter = 1;
 
 var eventUrl = '/event';
 var postUrl = '/post';
+var busExistsUrl = '/exists' ;
 var createUrl = '/create';
-var host = "localhost";
+var host = "event.ris.dev.muze.nl";
 var longPollTimeout = 5000;
 
 
+var securePassword = 'paashaas';
 var eventPort = 7000;
 var adminPort = 7001;
 var busses = {};
@@ -35,6 +29,7 @@ var httpsOptions = {
 
 //create the http server
 var varEventServer = http.createServer(function(request, response) {
+	console.log( request.url );
 	//parse the requested url
 	var requestUrl = parseRequestUrl(request.url);
 
@@ -51,7 +46,7 @@ var varEventServer = http.createServer(function(request, response) {
 					//longpolling
 					if(typeof requestUrl['params']['longpoll'] != 'undefined'){
 						if(requestUrl['params']['longpoll'] == 1){
-							setTimeout(function(response){
+							setTimeout(function(){
 								response.end();
 							},longPollTimeout);
 						}
@@ -68,9 +63,38 @@ var varEventServer = http.createServer(function(request, response) {
 			console.log('no parameters received for an eventstream request');
 		}
 	}
-	//test helpers
+	if(requestUrl['location'] == busExistsUrl){
+		console.log('busExists received');
+		if(typeof requestUrl['params'] != 'undefined'){
+			console.log(requestUrl);
+			if(typeof requestUrl['params']['id'] != 'undefined'){
+				if(typeof busses[requestUrl['params']['id']] != 'undefined'){
+					var busExistsResponse = {
+						id: requestUrl['params']['id'], 
+						exists: true
+					};
+					response.write(JSON.stringify(busExistsResponse));
+					response.end();
+				} else {
+					var busExistsResponse = { 
+						id: requestUrl['params']['id'],
+						exists: false
+					};
+					response.write(JSON.stringify(busExistsResponse));
+					response.end();
+
+				}
+			} else {
+				console.log('no id received as param');
+			}
+		} else {
+			console.log('no params given');
+		}
+	}
+	//tempshiturl
 	if(request.url == '/test'){
 		console.log('testUrl requested');
+		//dostuff return the testpage to show the correct bus
 		response.writeHead(200, {'Content-Type': 'text/html'});
 		response.write(fs.readFileSync(__dirname + '/sse-node.html'));
 		console.log('sse-node sent to client');
@@ -90,7 +114,7 @@ var varEventServer = http.createServer(function(request, response) {
 	}
 }).listen(eventPort, host);
 	 
-	var adminServer = https.createServer(httpsOptions,function(request,response){
+	var adminServer = http.createServer(function(request,response){
 			//everything that goes to the adminService should be a POST and use ssl
 			//start receiving the post request
 			var body = "";
@@ -102,6 +126,7 @@ var varEventServer = http.createServer(function(request, response) {
 			});
 			//end of data receival start doing things
 			request.on('end', function(){
+				console.log(request.url);
 				console.log('received a post');
 				console.log('data: ' + body);
 
@@ -110,23 +135,29 @@ var varEventServer = http.createServer(function(request, response) {
 					//if something is posted to me to send over the bus!
 					console.log('posturl requested');
 					console.log('posturl body: '+body);
-					handlePost(postDataToAssocArray(body));
+					handlePost(postDataToAssocArray(body),response);
 				}
 
 				if(request.url == createUrl){
 					//create a new bus!
 					busId = handleCreate(postDataToAssocArray(body));
+					
+					var returnValue = { id: busId };
+//					returnValue["id"] = busId;
+					
 
-					response.writeHead(200,{'Content-Type': 'text/html'});
-					response.write('ID: '+busId);
+					//response.writeHead(200,{'Content-Type': 'text/html', 'z-test-header' : busId });
+					response.write(JSON.stringify(returnValue));
+					console.log('ID: '+busId);
+					//response.end('ID: '+busId+"\n");
 					response.end();
 				}
 			});
 
 
 
-	response.writeHead(200);
-	response.end();
+	//response.writeHead(200);
+	//response.end();
 
 }).listen(adminPort, host);
 
@@ -146,9 +177,11 @@ function postDataToAssocArray(postData){
 		}
 			
 			for(var key in parts){
-				keyValue = parts[key].split("=");
-				//decode the html characters and replace the +'s with spaces
-				returnValue[keyValue[0]] = keyValue[1].replace(/\+/gi,' ');
+				var keyValue = parts[key].split("=");
+				if ( keyValue[1] ) {
+					//decode the html characters and replace the +'s with spaces
+					returnValue[keyValue[0]] = keyValue[1].replace(/\+/gi,' ');
+				}
 			}
 
 		console.log(returnValue);
@@ -172,7 +205,7 @@ function handleCreate(postData){
 	return busId;
 }
 
-function handlePost(postData){
+function handlePost(postData,response){
 	//check for ID
 	if(typeof postData['id'] != 'undefined'){
 		//check if bus exists
@@ -191,8 +224,11 @@ function handlePost(postData){
 				console.log('incorrect password received, not sending anything.');
 			}
 		} else {
-				//invalid bus
+			//invalid bus
 				console.log('invalid ID received, bus does not exist.');
+				response.write(JSON.stringify({error: { code: 1, message: 'Invalid id received, bus does not exist.'}}));
+				response.end();
+				
 		}
 	} else {
 		//no id received
@@ -218,6 +254,13 @@ function handleEventRequest(id,request,response){
 	} else {
 		//bus does not exist
 		console.log('invalid bus requested');
+		errorResponse = {
+			error: { 
+				code: 1, 
+				message: 'Invalid bus requested, bus does not exist (yet).'
+			}
+		};
+		response.write(JSON.stringify(errorResponse));
 	}
 }
 
@@ -241,7 +284,10 @@ function parseRequestUrl(url){
 			//by splitting on the =
 
 			for(var key in keyValueCombinations){
-				params[keyValueCombinations[key].split('=')[0]] = keyValueCombinations[key].split('=')[1];
+				var keyValue = keyValueCombinations[key].split('=');
+				if ( keyValue[1] ) {
+					params[keyValue[0]] = keyValue[1];
+				}
 			}
 		}
 		else {
