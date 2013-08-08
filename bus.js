@@ -2,6 +2,7 @@ require('./SSEConnection.js');
 
 Bus = function(id,password) {
 	var clients = {};
+	var longPollClients = {};
 	this.id = id;
 	this.messageId = '1';
 	this.password = password;
@@ -9,9 +10,9 @@ Bus = function(id,password) {
 	console.log('bus with password: \'' + this.password + '\' created');
 
 	//adds a new connection to the clientlist
-	this.addConnection = function(request,response){
+	this.addConnection = function(request,response, longPoll){
 		var uniqueId = this.socketUniqueIdentifier(request.connection);
-		var connection = new SSEConnection(request,response);
+		var connection = new SSEConnection(request,response,'',longPoll);
 
 		var onCloseHandler = function(){
 			delete clients[uniqueId];

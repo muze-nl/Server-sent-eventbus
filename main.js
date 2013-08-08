@@ -29,10 +29,9 @@ var httpsOptions = {
 
 //create the http server
 var varEventServer = http.createServer(function(request, response) {
-	console.log( request.url );
+	console.log( 'listen:'+request.url );
 	//parse the requested url
 	var requestUrl = parseRequestUrl(request.url);
-
 	//ROUTING!
 	//events
 	if(requestUrl['location'] == eventUrl){
@@ -41,21 +40,28 @@ var varEventServer = http.createServer(function(request, response) {
 			//check if ID was given
 			if(typeof requestUrl['params']['id'] != 'undefined'){
 				//if an eventstream was requested
-				if (request.headers.accept && request.headers.accept == 'text/event-stream') {
-					
+				//if (request.headers.accept && request.headers.accept == 'text/event-stream') {
+					response.writeHead(200, {
+						'Content-Type' : 'text/event-stream',
+						'Access-Control-Allow-Origin': '*'
+					});
 					//longpolling
+					var longPoll = false;
 					if(typeof requestUrl['params']['longpoll'] != 'undefined'){
 						if(requestUrl['params']['longpoll'] == 1){
+							longPoll = true;
+							console.log('request received with longpoll enabled...');
 							setTimeout(function(){
+								console.log('setTimeout function called, longPollTimeout has probably been reached....');
 								response.end();
 							},longPollTimeout);
 						}
 					}
-
-					handleEventRequest(requestUrl['params']['id'],request,response);
-				} else {
-					console.log('no proper headers received for eventstream request, not sending any events');
-				}
+					console.log('client event stream request initiated');
+					handleEventRequest(requestUrl['params']['id'],request,response,longPoll);
+				//} else {
+				//	console.log('no proper headers received for eventstream request, not sending any events');
+				//}
 			} else {
 				console.log('no id received for a bus, not sending any events');
 			}
@@ -115,6 +121,7 @@ var varEventServer = http.createServer(function(request, response) {
 }).listen(eventPort, host);
 	 
 	var adminServer = http.createServer(function(request,response){
+			console.log('admin:'+request.url);
 			//everything that goes to the adminService should be a POST and use ssl
 			//start receiving the post request
 			var body = "";
@@ -136,6 +143,8 @@ var varEventServer = http.createServer(function(request, response) {
 					console.log('posturl requested');
 					console.log('posturl body: '+body);
 					handlePost(postDataToAssocArray(body),response);
+					response.writeHead(200);
+					response.end(JSON.stringify(['ok']));
 				}
 
 				if(request.url == createUrl){
@@ -247,10 +256,13 @@ function createBus(password){
 	return busId;
 }
 
-function handleEventRequest(id,request,response){
+var longPollConnections = [];
+
+function handleEventRequest(id,request,response, longPoll){
 	console.log('eventRequest for id: ' + id);
 	if(typeof busses[id] != 'undefined'){
-		busses[id].addConnection(request,response);
+		busses[id].addConnection(request,response,longPoll);
+			
 	} else {
 		//bus does not exist
 		console.log('invalid bus requested');
@@ -261,6 +273,10 @@ function handleEventRequest(id,request,response){
 			}
 		};
 		response.write(JSON.stringify(errorResponse));
+		if (longPoll) {
+			console.log('handleEventRequest received longpoll and the bus does not exist...');
+			response.end();
+		}
 	}
 }
 
